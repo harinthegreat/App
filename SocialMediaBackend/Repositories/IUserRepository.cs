@@ -11,5 +11,7 @@ namespace SocialMediaBackend.Repositories
         Task<User?> GetUserByEmailVerificationTokenAsync(string token);
         Task CreateUserAsync(User user);
         Task UpdateUserAsync(User user);
+        Task<IEnumerable<User>> GetAllUsersAsync();
+        Task DeleteUserAsync(User user);
     }
 }
