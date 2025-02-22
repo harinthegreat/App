@@ -4,6 +4,7 @@ using SocialMediaBackend.DTOs;
 using SocialMediaBackend.Models;
 using SocialMediaBackend.Services;
 using System.Threading.Tasks;
+using SocialMediaBackend.Repositories;
 
 namespace SocialMediaBackend.Controllers
 {
@@ -13,11 +14,15 @@ namespace SocialMediaBackend.Controllers
     {
         private readonly UserService _userService;
         private readonly JwtService _jwtService;
+        private readonly IUserRepository _userRepository;
+        private readonly IEmailService _emailService;
 
-        public UserController(UserService userService, JwtService jwtService)
+        public UserController(UserService userService, JwtService jwtService, IUserRepository userRepository, IEmailService emailService)
         {
             _userService = userService;
             _jwtService = jwtService;
+            _userRepository = userRepository;
+            _emailService = emailService;
         }
 
         [HttpPost("register")]
@@ -79,6 +84,44 @@ namespace SocialMediaBackend.Controllers
         public IActionResult AdminEndpoint()
         {
             return Ok(new { message = "This is an admin-only endpoint" });
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("admin/users")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            var users = await _userRepository.GetAllUsersAsync();
+            var userDtos = users.Select(u => new UserDTO
+            {
+                Username = u.Username,
+                Email = u.Email,
+                Role = u.Role
+            });
+            return Ok(userDtos);
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("admin/users/{username}")]
+        public async Task<IActionResult> DeleteUser(string username)
+        {
+            var user = await _userRepository.GetUserByUsernameAsync(username);
+            if (user == null)
+                return NotFound(new { error = "User not found." });
+
+            await _userRepository.DeleteUserAsync(user);
+            return Ok(new { message = "User deleted successfully." });
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpPost("admin/send-alert")]
+        public async Task<IActionResult> SendAlert([FromBody] AlertDTO alertDto)
+        {
+            var user = await _userRepository.GetUserByUsernameAsync(alertDto.Username);
+            if (user == null)
+                return NotFound(new { error = "User not found." });
+
+            await _emailService.SendEmailAsync(user.Email, "Security Alert", alertDto.Message);
+            return Ok(new { message = "Alert sent successfully." });
         }
 
         [HttpPost("refresh-token")]
