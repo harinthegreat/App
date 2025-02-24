@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getProfile } from "../services/api";
+import "C:\\Users\\aryan\\OneDrive\\Desktop\\Dotnet_Final_Social_Project\\App\\social-media-frontend\\src\\Styles\\Profile.css"; // New CSS file for profile page
 
 const Profile = () => {
   const [profile, setProfile] = useState(null);
@@ -7,20 +8,20 @@ const Profile = () => {
 
   useEffect(() => {
     getProfile()
-      .then(data => setProfile(data))
-      .catch(err => setError(err.error || "Error fetching profile"));
+      .then((data) => setProfile(data))
+      .catch((err) => setError(err.error || "Error fetching profile"));
   }, []);
 
   if (error) return <div className="alert alert-danger">{error}</div>;
   if (!profile) return <div>Loading profile...</div>;
 
   return (
-    <div className="card mx-auto" style={{ maxWidth: "500px" }}>
-      <div className="card-body">
-        <h3 className="card-title">Profile</h3>
-        <p><strong>Username:</strong> {profile.username}</p>
-        <p><strong>Email:</strong> {profile.email}</p>
-        <p><strong>Role:</strong> {profile.role}</p>
+    <div className="profile-container">
+      <div className="profile-card">
+        <img src="/default-avatar.png" alt="User" className="profile-img" />
+        <h3>{profile.username}</h3>
+        <p>{profile.email}</p>
+        <span className="role">{profile.role}</span>
       </div>
     </div>
   );
