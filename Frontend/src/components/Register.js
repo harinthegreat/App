@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { register } from "../services/api";
 import { useNavigate } from "react-router-dom";
+import "C:\\Users\\aryan\\OneDrive\\Desktop\\Dotnet_Final_Social_Project\\App\\social-media-frontend\\src\\Styles\\Auth.css";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -8,7 +9,6 @@ const Register = () => {
     username: "",
     email: "",
     password: "",
-    role: "User"
   });
   const [message, setMessage] = useState("");
 
@@ -19,34 +19,45 @@ const Register = () => {
     e.preventDefault();
     try {
       const data = await register(form);
-      setMessage(data.message || "Registration successful! Check your email for verification.");
-      navigate("/login");
+      setMessage("Registration successful! Check your email.");
+      setTimeout(() => navigate("/login"), 2000);
     } catch (err) {
       setMessage(err.error || "Registration failed.");
     }
   };
 
   return (
-    <div className="card mx-auto" style={{ maxWidth: "500px" }}>
-      <div className="card-body">
-        <h3 className="card-title mb-4">Register</h3>
+    <div className="auth-container">
+      <div className="auth-box">
+        <h2>Register</h2>
         {message && <div className="alert alert-info">{message}</div>}
         <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label">Username</label>
-            <input name="username" type="text" className="form-control" onChange={handleChange} required />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Email</label>
-            <input name="email" type="email" className="form-control" onChange={handleChange} required />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Password</label>
-            <input name="password" type="password" className="form-control" onChange={handleChange} required />
-          </div>
-          <input name="role" type="hidden" value="User" />
-          <button type="submit" className="btn btn-primary w-100">Register</button>
+          <input
+            type="text"
+            name="username"
+            placeholder="Username"
+            onChange={handleChange}
+            required
+          />
+          <input
+            type="email"
+            name="email"
+            placeholder="Email"
+            onChange={handleChange}
+            required
+          />
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            onChange={handleChange}
+            required
+          />
+          <button type="submit">Register</button>
         </form>
+        <p className="switch-form">
+          Already have an account? <a href="/login">Login</a>
+        </p>
       </div>
     </div>
   );
