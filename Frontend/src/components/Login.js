@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { login } from "../services/api";
 import { useNavigate } from "react-router-dom";
+import "C:\\Users\\aryan\\OneDrive\\Desktop\\Dotnet_Final_Social_Project\\App\\social-media-frontend\\src\\Styles\\Auth.css"; // Import the new CSS file
 
 const Login = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     emailOrUsername: "",
-    password: ""
+    password: "",
   });
   const [message, setMessage] = useState("");
 
@@ -17,36 +18,38 @@ const Login = () => {
     e.preventDefault();
     try {
       const data = await login(form);
-      if (data.mfaRequired) {
-        localStorage.setItem("mfaToken", data.mfaToken);
-        navigate("/mfa-verify-login");
-      } else {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("refreshToken", data.refreshToken);
-        localStorage.setItem("role", data.role);
-        navigate("/profile");
-      }
+      localStorage.setItem("token", data.token);
+      navigate("/profile");
     } catch (err) {
       setMessage(err.error || "Login failed.");
     }
   };
 
   return (
-    <div className="card mx-auto" style={{ maxWidth: "500px" }}>
-      <div className="card-body">
-        <h3 className="card-title mb-4">Login</h3>
+    <div className="auth-container">
+      <div className="auth-box">
+        <h2>Login</h2>
         {message && <div className="alert alert-danger">{message}</div>}
         <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label className="form-label">Email or Username</label>
-            <input name="emailOrUsername" type="text" className="form-control" onChange={handleChange} required />
-          </div>
-          <div className="mb-3">
-            <label className="form-label">Password</label>
-            <input name="password" type="password" className="form-control" onChange={handleChange} required />
-          </div>
-          <button type="submit" className="btn btn-primary w-100">Login</button>
+          <input
+            type="text"
+            name="emailOrUsername"
+            placeholder="Email or Username"
+            onChange={handleChange}
+            required
+          />
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            onChange={handleChange}
+            required
+          />
+          <button type="submit">Login</button>
         </form>
+        <p className="switch-form">
+          Don't have an account? <a href="/register">Register</a>
+        </p>
       </div>
     </div>
   );
