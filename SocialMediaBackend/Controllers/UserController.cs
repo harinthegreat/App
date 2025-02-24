@@ -5,6 +5,8 @@ using SocialMediaBackend.Models;
 using SocialMediaBackend.Services;
 using System.Threading.Tasks;
 using SocialMediaBackend.Repositories;
+using SocialMediaBackend.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace SocialMediaBackend.Controllers
 {
@@ -16,13 +18,15 @@ namespace SocialMediaBackend.Controllers
         private readonly JwtService _jwtService;
         private readonly IUserRepository _userRepository;
         private readonly IEmailService _emailService;
+        private readonly AppDbContext _context;
 
-        public UserController(UserService userService, JwtService jwtService, IUserRepository userRepository, IEmailService emailService)
+        public UserController(UserService userService, JwtService jwtService, IUserRepository userRepository, IEmailService emailService,AppDbContext context)
         {
             _userService = userService;
             _jwtService = jwtService;
             _userRepository = userRepository;
             _emailService = emailService;
+            _context = context;
         }
 
         [HttpPost("register")]
@@ -66,12 +70,19 @@ namespace SocialMediaBackend.Controllers
             var user = await _userService.GetUserByEmailAsync(request.EmailOrUsername) ??
                        await _userService.GetUserByUsernameAsync(request.EmailOrUsername);
 
+            if (user == null)
+                return Unauthorized(new { error = "Invalid credentials!" });
+
+            if (user.IsBanned)
+                return Unauthorized(new { error = "Your account has been banned." });
+
             if (user!.IsMfaEnabled)
             {
                 var mfaToken = _jwtService.GenerateToken(user, expiresInMinutes: 5);
                 return Ok(new { mfaRequired = true, mfaToken });
             }
 
+            await _userService.LogLoginAttempt(user.Username, HttpContext);
             var token = _jwtService.GenerateToken(user,5);
             var refreshToken = _jwtService.GenerateRefreshToken();
             await _userService.SaveRefreshTokenAsync(user.Id, refreshToken);
@@ -86,43 +97,8 @@ namespace SocialMediaBackend.Controllers
             return Ok(new { message = "This is an admin-only endpoint" });
         }
 
-        [Authorize(Roles = "Admin")]
-        [HttpGet("admin/users")]
-        public async Task<IActionResult> GetAllUsers()
-        {
-            var users = await _userRepository.GetAllUsersAsync();
-            var userDtos = users.Select(u => new UserDTO
-            {
-                Username = u.Username,
-                Email = u.Email,
-                Role = u.Role
-            });
-            return Ok(userDtos);
-        }
-
-        [Authorize(Roles = "Admin")]
-        [HttpDelete("admin/users/{username}")]
-        public async Task<IActionResult> DeleteUser(string username)
-        {
-            var user = await _userRepository.GetUserByUsernameAsync(username);
-            if (user == null)
-                return NotFound(new { error = "User not found." });
-
-            await _userRepository.DeleteUserAsync(user);
-            return Ok(new { message = "User deleted successfully." });
-        }
-
-        [Authorize(Roles = "Admin")]
-        [HttpPost("admin/send-alert")]
-        public async Task<IActionResult> SendAlert([FromBody] AlertDTO alertDto)
-        {
-            var user = await _userRepository.GetUserByUsernameAsync(alertDto.Username);
-            if (user == null)
-                return NotFound(new { error = "User not found." });
-
-            await _emailService.SendEmailAsync(user.Email, "Security Alert", alertDto.Message);
-            return Ok(new { message = "Alert sent successfully." });
-        }
+        
+        
 
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDTO request)
@@ -152,8 +128,21 @@ namespace SocialMediaBackend.Controllers
             if (principal == null)
                 return Unauthorized(new { error = "Invalid token!" });
 
-            var userId = int.Parse(principal.FindFirst("UserId")!.Value);
-            await _userService.RevokeRefreshTokenAsync(userId);
+            var username = User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(username))
+                return Unauthorized(new { error = "Invalid token!" });
+
+            var user = await _userRepository.GetUserByUsernameAsync(username);
+            if (user == null)
+                return Unauthorized(new { error = "User not found!" });
+
+            var activeUser = await _context.ActiveSessions.FirstOrDefaultAsync(a => a.Username == username);
+            if (activeUser != null)
+            {
+                _context.ActiveSessions.Remove(activeUser);
+                await _context.SaveChangesAsync();
+            }
+            await _userService.RevokeRefreshTokenAsync(user.Id);
 
             return Ok(new { message = "Logout successful!" });
         }
