@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace SocialMediaBackend.Models
@@ -29,5 +31,9 @@ namespace SocialMediaBackend.Models
         public bool IsMfaEnabled { get; set; } = false;
         public string? MfaSecret { get; set; }
         public string? RecoveryCodes { get; set; }
+
+        public bool IsBanned { get; set; } = false;
+
+        public List<LoginHistory> LoginHistories { get; set; } = new();
     }
 }
