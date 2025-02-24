@@ -56,5 +56,24 @@ namespace SocialMediaBackend.Repositories
             _context.Users.Remove(user);
             await _context.SaveChangesAsync();
         }
+
+        public async Task<IEnumerable<LoginHistory>> GetUserLoginHistoryAsync(string username)
+        {
+            return await _context.LoginHistories
+                .Where(u => u.Username == username)
+                .OrderByDescending(u => u.Timestamp)
+                .ToListAsync();
+
+        }
+
+        public async Task<IEnumerable<SuspiciousLogin>> GetSuspiciousLoginsAsync()
+        {
+            return await _context.SuspiciousLogins.ToListAsync();
+        }
+
+        public async Task<IEnumerable<ActiveSession>> GetActiveUsersAsync()
+        {
+            return await _context.ActiveSessions.ToListAsync();
+        }
     }
 }
