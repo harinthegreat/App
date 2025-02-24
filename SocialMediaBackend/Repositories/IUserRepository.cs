@@ -13,5 +13,8 @@ namespace SocialMediaBackend.Repositories
         Task UpdateUserAsync(User user);
         Task<IEnumerable<User>> GetAllUsersAsync();
         Task DeleteUserAsync(User user);
+        Task<IEnumerable<LoginHistory>> GetUserLoginHistoryAsync(string username);
+        Task<IEnumerable<SuspiciousLogin>> GetSuspiciousLoginsAsync();
+        Task<IEnumerable<ActiveSession>> GetActiveUsersAsync();
     }
 }
