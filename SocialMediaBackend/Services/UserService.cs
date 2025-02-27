@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using SocialMediaBackend.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace SocialMediaBackend.Services
 {
@@ -114,6 +115,15 @@ namespace SocialMediaBackend.Services
 
             if (user.IsBanned) 
                 return false;
+
+            var bannedMemberships = await _context.GroupMemberships
+                .Where(m => m.UserId == user.Id && m.IsBanned)
+                .AnyAsync();
+            if (bannedMemberships)
+            {
+                // Log this event or handle it as needed
+                Console.WriteLine($"User {user.Username} is banned from one or more groups.");
+            }
 
             string hashedPassword = HashPassword(password);
             bool isPasswordValid = user.PasswordHash == hashedPassword;
