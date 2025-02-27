@@ -209,5 +209,38 @@ namespace SocialMediaBackend.Controllers
             return Ok(new { message = "MFA verified successfully!" });
         }
 
+        [HttpPost("admin-login")]
+        public async Task<IActionResult> AdminLogin([FromBody] LoginDTO request)
+        {
+            var isValid = await _userService.ValidateUserAsync(request.EmailOrUsername, request.Password);
+            if (!isValid)
+                return Unauthorized(new { error = "Invalid credentials!" });
+
+            var user = await _userService.GetUserByEmailAsync(request.EmailOrUsername) ??
+                       await _userService.GetUserByUsernameAsync(request.EmailOrUsername);
+
+            if (user == null)
+                return Unauthorized(new { error = "Invalid credentials!" });
+
+            if (user.Role != "Admin")
+                return Unauthorized(new { error = "Only admins can access this endpoint" });
+
+            if (user.IsBanned)
+                return Unauthorized(new { error = "Your account has been banned." });
+
+            if (user.IsMfaEnabled)
+            {
+                var mfaToken = _jwtService.GenerateToken(user, expiresInMinutes: 5);
+                return Ok(new { mfaRequired = true, mfaToken });
+            }
+
+            await _userService.LogLoginAttempt(user.Username, HttpContext);
+            var token = _jwtService.GenerateToken(user, 5);
+            var refreshToken = _jwtService.GenerateRefreshToken();
+            await _userService.SaveRefreshTokenAsync(user.Id, refreshToken);
+
+            return Ok(new { token, refreshToken, role = user.Role });
+        }
+
     }
 }
