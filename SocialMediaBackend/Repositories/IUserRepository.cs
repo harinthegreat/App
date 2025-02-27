@@ -16,5 +16,7 @@ namespace SocialMediaBackend.Repositories
         Task<IEnumerable<LoginHistory>> GetUserLoginHistoryAsync(string username);
         Task<IEnumerable<SuspiciousLogin>> GetSuspiciousLoginsAsync();
         Task<IEnumerable<ActiveSession>> GetActiveUsersAsync();
+        Task<IEnumerable<Group>> GetUserGroupsAsync(int userId);
+        Task<IEnumerable<GroupMembership>> GetUserMembershipsAsync(int userId);
     }
 }
