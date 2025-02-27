@@ -75,5 +75,20 @@ namespace SocialMediaBackend.Repositories
         {
             return await _context.ActiveSessions.ToListAsync();
         }
+
+        public async Task<IEnumerable<Group>> GetUserGroupsAsync(int userId)
+        {
+            return await _context.Groups
+                .Where(g => g.CreatorId == userId)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<GroupMembership>> GetUserMembershipsAsync(int userId)
+        {
+            return await _context.GroupMemberships
+                .Where(m => m.UserId == userId)
+                .Include(m => m.Group)
+                .ToListAsync();
+        }
     }
 }
