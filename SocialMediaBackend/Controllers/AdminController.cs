@@ -20,12 +20,14 @@ namespace SocialMediaBackend.Controllers
         private readonly IUserRepository _userRepository;
         private readonly IEmailService _emailService;
         private readonly AppDbContext _context;
+        private readonly AdminService _adminService;
 
-        public AdminController(IUserRepository userRepository, IEmailService emailService, AppDbContext context)
+        public AdminController(IUserRepository userRepository, IEmailService emailService, AppDbContext context, AdminService adminService)
         {
             _userRepository = userRepository;
             _emailService = emailService;
             _context = context;
+            _adminService = adminService;
         }
 
         [HttpGet("users")]
@@ -96,6 +98,34 @@ namespace SocialMediaBackend.Controllers
 
             await _emailService.SendEmailAsync(user.Email, "Security Alert", alertDto.Message);
             return Ok(new { message = "Alert sent successfully." });
+        }
+
+        [HttpGet("groups")]
+        public async Task<IActionResult> GetAllGroups()
+        {
+            var groups = await _adminService.GetAllGroupsAsync();
+            return Ok(groups);
+        }
+
+        [HttpPost("groups/{id}/alert")]
+        public async Task<IActionResult> SendAlertToGroupAdmins(int id, [FromBody] AlertDTO alertDto)
+        {
+            await _adminService.SendAlertToGroupAdminsAsync(id, alertDto.Message);
+            return Ok(new { message = "Alert sent to group admins" });
+        }
+
+        [HttpPost("groups/{id}/ban")]
+        public async Task<IActionResult> BanGroup(int id)
+        {
+            await _adminService.BanGroupAsync(id);
+            return Ok(new { message = "Group banned" });
+        }
+
+        [HttpDelete("groups/{id}")]
+        public async Task<IActionResult> DeleteGroup(int id)
+        {
+            await _adminService.DeleteGroupAsync(id);
+            return Ok(new { message = "Group deleted" });
         }
     }
 }
