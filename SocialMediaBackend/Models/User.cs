@@ -35,5 +35,10 @@ namespace SocialMediaBackend.Models
         public bool IsBanned { get; set; } = false;
 
         public List<LoginHistory> LoginHistories { get; set; } = new();
+
+        public List<Group> CreatedGroups { get; set; } = new(); 
+        public List<GroupMembership> GroupMemberships { get; set; } = new(); 
+        public List<Post> Posts { get; set; } = new(); 
+        public List<PostInteraction> PostInteractions { get; set; } = new();
     }
 }
