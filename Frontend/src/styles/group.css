@@ -1,0 +1,20 @@
+.group-card h3 {
+  color: #9B59B6;
+}
+
+.group-card p {
+  color: #666;
+}
+
+.group-settings form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.group-members div {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}

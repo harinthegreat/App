@@ -1,0 +1,25 @@
+.profile-card {
+    text-align: center;
+  }
+  
+  .profile-card h3 {
+    color: #4A90E2;
+    margin-bottom: 10px;
+  }
+  
+  .profile-card p {
+    color: #666;
+    margin: 5px 0;
+  }
+  
+  .follow-requests {
+    margin-top: 20px;
+  }
+  
+  .follow-requests div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+  }

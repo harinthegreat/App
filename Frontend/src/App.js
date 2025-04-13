@@ -1,50 +1,33 @@
-import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import Navbar from "./components/Navbar";
-import Register from "./components/Register";
-import Login from "./components/Login";
-import Profile from "./components/Profile";
-import EnableMFA from "./components/EnableMFA";
-import MfaVerifyLogin from "./components/MfaVerifyLogin";
-import AdminPage from "./components/AdminPage";
-import VerifyEmail from './components/VerifyEmail';
+import React, { useContext } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { AuthContext } from './context/AuthContext';
+import Home from './pages/Home';
+import Feed from './pages/Feed';
+import ProfilePage from './pages/ProfilePage';
+import GroupPage from './pages/GroupPage';
+import AdminPage from './pages/AdminPage';
+import Login from './components/Auth/Login';
+import Register from './components/Auth/Register';
+import MfaSetup from './components/Auth/MfaSetup';
+import MfaVerify from './components/Auth/MfaVerify';
 
 function App() {
-  // Check if a token exists in localStorage to determine authentication
-  const isAuthenticated = () => !!localStorage.getItem("token");
-
-  // Check if user is an admin (this value should be set after login)
-  const isAdmin = () => localStorage.getItem("role") === "Admin";
+  const { user } = useContext(AuthContext);
 
   return (
-    <>
-      <Navbar />
-      <div className="container mt-4">
-        <Routes>
-          <Route path="/" element={<Navigate to="/profile" replace />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/profile" element={isAuthenticated() ? <Profile /> : <Navigate to="/login" />} />
-          <Route path="/enable-mfa" element={isAuthenticated() ? <EnableMFA /> : <Navigate to="/login" />} />
-          <Route path="/mfa-verify-login" element={<MfaVerifyLogin />} />
-          <Route path="/admin" element={isAuthenticated() && isAdmin() ? <AdminPage /> : <Navigate to="/login" />} />
-          <Route
-            path="/profile"
-            element={isAuthenticated() ? <Profile /> : <Navigate to="/login" />}
-          />
-          <Route
-            path="/enable-mfa"
-            element={isAuthenticated() ? <EnableMFA /> : <Navigate to="/login" />}
-          />
-          <Route path="/mfa-verify-login" element={<MfaVerifyLogin />} />
-          <Route
-            path="/admin"
-            element={isAuthenticated() && isAdmin() ? <AdminPage /> : <Navigate to="/login" />}
-          />
-        </Routes>
-      </div>
-    </>
+    <div className="container">
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/feed" />} />
+        <Route path="/register" element={!user ? <Register /> : <Navigate to="/feed" />} />
+        <Route path="/mfa/setup" element={user ? <MfaSetup /> : <Navigate to="/login" />} />
+        <Route path="/mfa/verify" element={<MfaVerify />} />
+        <Route path="/feed" element={user ? <Feed /> : <Navigate to="/login" />} />
+        <Route path="/profile/:username" element={user ? <ProfilePage /> : <Navigate to="/login" />} />
+        <Route path="/group/:groupName" element={user ? <GroupPage /> : <Navigate to="/login" />} />
+        <Route path="/admin" element={user && user.role === 'Admin' ? <AdminPage /> : <Navigate to="/login" />} />
+      </Routes>
+    </div>
   );
 }
 
