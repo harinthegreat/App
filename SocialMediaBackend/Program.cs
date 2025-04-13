@@ -1,15 +1,16 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SocialMediaBackend.Data;
 using SocialMediaBackend.Repositories;
 using SocialMediaBackend.Services;
+using SocialMediaBackend.Middlewares;
 using System.Text;
 using Microsoft.OpenApi.Models;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 var builder = WebApplication.CreateBuilder(args);
-
 var configuration = builder.Configuration;
 
 var jwtKey = configuration["Jwt:Key"];
@@ -18,7 +19,12 @@ if (string.IsNullOrEmpty(jwtKey))
     throw new ArgumentNullException("Jwt:Key", "JWT key cannot be null or empty. Check appsettings.json.");
 }
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddNewtonsoftJson(options =>
+    {
+        options.SerializerSettings.Converters.Add(new StringEnumConverter()); // Enums as strings
+        options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -50,12 +56,16 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(configuration.GetConnectionString("DefaultConnection")));
-
+    options.UseSqlite(configuration.GetConnectionString("DefaultConnection"))); 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddSingleton<JwtService>();
+builder.Services.AddScoped<IGroupRepository, GroupRepository>();
+builder.Services.AddScoped<IPostRepository, PostRepository>();
+builder.Services.AddScoped<GroupService>();
+builder.Services.AddScoped<PostService>();
+builder.Services.AddScoped<AdminService>();
 
 var key = Encoding.UTF8.GetBytes(jwtKey);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -83,7 +93,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:3002")
+        policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:3004")
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -100,10 +110,12 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "SocialMediaBackend API v1");
     });
 }
-app.UseCors("AllowReactApp");
+
+app.UseCors("AllowReactApp");  
 app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
+app.UseMiddleware<GroupActivityLoggingMiddleware>();
+app.UseAuthentication();       
+app.UseAuthorization();        
+app.MapControllers();          
 
 app.Run();

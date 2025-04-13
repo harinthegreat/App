@@ -4,6 +4,9 @@ using SocialMediaBackend.DTOs;
 using SocialMediaBackend.Models;
 using SocialMediaBackend.Services;
 using System.Threading.Tasks;
+using SocialMediaBackend.Repositories;
+using SocialMediaBackend.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace SocialMediaBackend.Controllers
 {
@@ -13,11 +16,17 @@ namespace SocialMediaBackend.Controllers
     {
         private readonly UserService _userService;
         private readonly JwtService _jwtService;
+        private readonly IUserRepository _userRepository;
+        private readonly IEmailService _emailService;
+        private readonly AppDbContext _context;
 
-        public UserController(UserService userService, JwtService jwtService)
+        public UserController(UserService userService, JwtService jwtService, IUserRepository userRepository, IEmailService emailService,AppDbContext context)
         {
             _userService = userService;
             _jwtService = jwtService;
+            _userRepository = userRepository;
+            _emailService = emailService;
+            _context = context;
         }
 
         [HttpPost("register")]
@@ -61,12 +70,19 @@ namespace SocialMediaBackend.Controllers
             var user = await _userService.GetUserByEmailAsync(request.EmailOrUsername) ??
                        await _userService.GetUserByUsernameAsync(request.EmailOrUsername);
 
+            if (user == null)
+                return Unauthorized(new { error = "Invalid credentials!" });
+
+            if (user.IsBanned)
+                return Unauthorized(new { error = "Your account has been banned." });
+
             if (user!.IsMfaEnabled)
             {
                 var mfaToken = _jwtService.GenerateToken(user, expiresInMinutes: 5);
                 return Ok(new { mfaRequired = true, mfaToken });
             }
 
+            await _userService.LogLoginAttempt(user.Username, HttpContext);
             var token = _jwtService.GenerateToken(user,5);
             var refreshToken = _jwtService.GenerateRefreshToken();
             await _userService.SaveRefreshTokenAsync(user.Id, refreshToken);
@@ -80,6 +96,9 @@ namespace SocialMediaBackend.Controllers
         {
             return Ok(new { message = "This is an admin-only endpoint" });
         }
+
+        
+        
 
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDTO request)
@@ -109,8 +128,21 @@ namespace SocialMediaBackend.Controllers
             if (principal == null)
                 return Unauthorized(new { error = "Invalid token!" });
 
-            var userId = int.Parse(principal.FindFirst("UserId")!.Value);
-            await _userService.RevokeRefreshTokenAsync(userId);
+            var username = User.FindFirst("sub")?.Value;
+            if (string.IsNullOrEmpty(username))
+                return Unauthorized(new { error = "Invalid token!" });
+
+            var user = await _userRepository.GetUserByUsernameAsync(username);
+            if (user == null)
+                return Unauthorized(new { error = "User not found!" });
+
+            var activeUser = await _context.ActiveSessions.FirstOrDefaultAsync(a => a.Username == username);
+            if (activeUser != null)
+            {
+                _context.ActiveSessions.Remove(activeUser);
+                await _context.SaveChangesAsync();
+            }
+            await _userService.RevokeRefreshTokenAsync(user.Id);
 
             return Ok(new { message = "Logout successful!" });
         }
@@ -175,6 +207,39 @@ namespace SocialMediaBackend.Controllers
                 return Unauthorized(new { error = "Invalid code!" });
 
             return Ok(new { message = "MFA verified successfully!" });
+        }
+
+        [HttpPost("admin-login")]
+        public async Task<IActionResult> AdminLogin([FromBody] LoginDTO request)
+        {
+            var isValid = await _userService.ValidateUserAsync(request.EmailOrUsername, request.Password);
+            if (!isValid)
+                return Unauthorized(new { error = "Invalid credentials!" });
+
+            var user = await _userService.GetUserByEmailAsync(request.EmailOrUsername) ??
+                       await _userService.GetUserByUsernameAsync(request.EmailOrUsername);
+
+            if (user == null)
+                return Unauthorized(new { error = "Invalid credentials!" });
+
+            if (user.Role != "Admin")
+                return Unauthorized(new { error = "Only admins can access this endpoint" });
+
+            if (user.IsBanned)
+                return Unauthorized(new { error = "Your account has been banned." });
+
+            if (user.IsMfaEnabled)
+            {
+                var mfaToken = _jwtService.GenerateToken(user, expiresInMinutes: 5);
+                return Ok(new { mfaRequired = true, mfaToken });
+            }
+
+            await _userService.LogLoginAttempt(user.Username, HttpContext);
+            var token = _jwtService.GenerateToken(user, 5);
+            var refreshToken = _jwtService.GenerateRefreshToken();
+            await _userService.SaveRefreshTokenAsync(user.Id, refreshToken);
+
+            return Ok(new { token, refreshToken, role = user.Role });
         }
 
     }

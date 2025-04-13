@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using Newtonsoft.Json;
 using System.Net;
+using Microsoft.AspNetCore.Http;
+using SocialMediaBackend.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace SocialMediaBackend.Services
 {
@@ -15,13 +18,15 @@ namespace SocialMediaBackend.Services
         private readonly IUserRepository _userRepository;
         private readonly JwtService _jwtService;
         private readonly IEmailService _emailService;
+        private readonly AppDbContext _context;
         private static readonly ConcurrentDictionary<int, string> _refreshTokens = new();
 
-        public UserService(IUserRepository userRepository, JwtService jwtService, IEmailService emailService)
+        public UserService(IUserRepository userRepository, AppDbContext context, JwtService jwtService, IEmailService emailService)
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
             _emailService = emailService;
+            _context = context;
         }
 
         public async Task<MfaSetupResponse> EnableMfaAsync(User user)
@@ -65,10 +70,8 @@ namespace SocialMediaBackend.Services
 
             await _userRepository.CreateUserAsync(user);
 
-            // URL‑encode the token so special characters don’t break the link
             var encodedToken = WebUtility.UrlEncode(user.EmailVerificationToken);
-            // Point the link to your React app (using HTTP to match your dev server)
-            var verificationLink = $"http://localhost:3002/verify-email?token={encodedToken}";
+            var verificationLink = $"http://localhost:3000/verify-email?token={encodedToken}";
 
             var emailBody = $"Please verify your email by clicking the link: {verificationLink}";
             await _emailService.SendEmailAsync(user.Email, "Verify your email", emailBody);
@@ -108,7 +111,19 @@ namespace SocialMediaBackend.Services
                        await _userRepository.GetUserByUsernameAsync(emailOrUsername);
 
             if (user == null)
-                return false; 
+                return false;
+
+            if (user.IsBanned) 
+                return false;
+
+            var bannedMemberships = await _context.GroupMemberships
+                .Where(m => m.UserId == user.Id && m.IsBanned)
+                .AnyAsync();
+            if (bannedMemberships)
+            {
+                // Log this event or handle it as needed
+                Console.WriteLine($"User {user.Username} is banned from one or more groups.");
+            }
 
             string hashedPassword = HashPassword(password);
             bool isPasswordValid = user.PasswordHash == hashedPassword;
@@ -145,6 +160,34 @@ namespace SocialMediaBackend.Services
             var bytes = Encoding.UTF8.GetBytes(password);
             var hash = sha256.ComputeHash(bytes);
             return Convert.ToBase64String(hash);
+        }
+
+        public async Task LogLoginAttempt(string username, HttpContext httpContext)
+        {
+            var ipAddress = httpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+
+            var loginHistory = new LoginHistory
+            {
+                Username = username,
+                IpAddress = ipAddress,
+                Timestamp = DateTime.UtcNow
+            };
+
+            _context.LoginHistories.Add(loginHistory);
+
+            var activeUser = _context.ActiveSessions.FirstOrDefault(a=>a.Username == username);
+            if (activeUser != null) { 
+                activeUser.LastActive = DateTime.UtcNow;
+            }
+            else
+            {
+                _context.ActiveSessions.Add(new ActiveSession
+                {
+                    Username = username,
+                    LastActive = DateTime.UtcNow
+                });
+            }
+            await _context.SaveChangesAsync();
         }
     }
 }
